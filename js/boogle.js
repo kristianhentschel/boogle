@@ -17,14 +17,21 @@ function boogle() {
         return state & ((1 << x) * 4 + y);
     }
 
-    function solve(letters) {
-        words = [];
+    function solve(letters, cb) {
         // generate all valid combinations of letters
+        words = [
+            {word: "Foo", positions: [1, 2, 3]},
+            {word: "Bar", positions: [7, 3, 4]}
+        ];
 
         // filter out duplicates
 
         // filter out everything that's not a word
-        return words;
+
+        // sort by length
+
+        // finally, give resulting array to the callback
+        cb(words);
     }
 
 
@@ -37,7 +44,8 @@ function boogle() {
 }
 
 function capture() {
-    var video = document.getElementById("capture");
+    var video = document.getElementById("capture-video");
+    var canvas = document.getElementById("capture-canvas");
 
     function init(){
         // Polyfill from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
@@ -60,22 +68,39 @@ function capture() {
             };
         })
         .catch(function(err) {
-            $(video).hide();
-            $("#words").text("No camera accessible (" + err.name + ": " + err.message + ").");
+            $("#error")
+            .text("No camera accessible (" + err.name + ": " + err.message + ").")
+            .show();
+
+            $("#main").hide();
         });
     }
     
-    function capture() {
+    function capture(cb) {
+        // stop the video
         video.pause();
+        $(video).hide();
 
-        return ['A'];
+        // capture current still frame to canvas
+        
+        // slice the canvas into the 16 grid points
+        
+        // send a thread off to try and recognise a single A-Z character in each slice
+        // trying all rotations and taking the one with the highest confidence?
+
+        // once all workers have finished, return the array.
+        var letters = [];
+        for(i = 0; i < 16; i++) {
+            var letter = '?';
+
+            letters.push(letter);
+        }
+        cb(letters);
     }
 
     function reset() {
         $(video).show();
         video.play();
-
-        $("#grid li").content();
     }
 
     return {
@@ -88,23 +113,52 @@ function capture() {
 $(function() {
     // test solver
     b = boogle($);
-    s = b.solve(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O']);
-    console.log();
+    b.solve(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O'], function(sol){
+        console.log(sol);
+    });
 
-    // test capture
+    // capture
     c = capture();
     c.init();
 
-    // buttons
+    // buttons and UI
     $("#solve").on("click", function() { 
-        letters = c.capture();
-        $("#grid").empty();
-        for (i = 0; i < letters.length; i++) {
-            $("<li>").text(letters[i]).appendTo($("#grid"));    
-        }
+        // recognize letters
+        c.capture(function(letters){
+            // display recognized letters
+            $("#grid").empty();
+            for (var i = 0; i < letters.length; i++) {
+                $("<li>").text(letters[i]).appendTo($("#grid"));    
+            }
 
-        results = s.solve(letters);
+            // find all words in the grid
+            results = b.solve(letters, function(words) {
+                // display found words
+                $("#words").empty();
+                for(var i = 0; i < words.length; i++) {
+                    $("<li>")
+                        .text(words[i].word)
+                        .on("click mouseover", words[i].positions, function(e){
+                            var positions = e.data;
+                            letter_lis = $("#grid li").removeClass("lit");
+                            $("#words li").removeClass("lit");
+                            $(this).addClass("lit");
+                            for(var j = 0; j < positions.length; j++) {
+                                letter_lis.eq(positions[j]).addClass("lit");
+                            }
+                        })
+                        .appendTo($("#words"));
+                }
+            });
+        });
     });
-    $("#reset").on("click", reset);
+
+    $("#reset").on("click", function() {
+        $("#grid, #words").empty();
+        for (i = 0; i < 16; i++) {
+            $("<li>").appendTo($("#grid"));    
+        }
+        c.reset();
+    });
 
 });

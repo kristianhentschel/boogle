@@ -6,8 +6,12 @@
 </head>
 
 <body>
+
+<p id="error"></p>
+
 <div id="main">
-    <video id="capture"></video>
+    <video id="capture-video"></video>
+    <video id="capture-canvas"></video>
     <ul id="grid" class="grid">
         <li>&nbsp;</li>
         <li>&nbsp;</li>
@@ -31,13 +35,18 @@
     </ul>
 </div>
 
-<p id="words">Hello...</p>
 
-<button id="solve">Solve</button>
-<button id="reset">Reset</button>
+<div id="buttons">
+    <button id="solve">Solve</button>
+    <button id="reset">Reset</button>
+</div>
+
+<div id="solution">
+    <ul id="words"></ul>
+</div>
 
 <script type="text/javascript" src="js/jquery-2.1.4.min.js"></script>
-<script type="text/javascript" src="js/underscore.min.js"></script>
+<script type="text/javascript" src="js/underscore-min.js"></script>
 <script type="text/javascript" src="js/ocrad.js"></script>
 <script type="text/javascript" src="js/boogle.js"></script>
 </body>
