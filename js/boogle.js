@@ -79,28 +79,85 @@ function capture() {
     function capture(cb) {
         // stop the video
         video.pause();
-        $(video).hide();
 
-        // capture current still frame to canvas
-        
-        // slice the canvas into the 16 grid points
-        
-        // send a thread off to try and recognise a single A-Z character in each slice
-        // trying all rotations and taking the one with the highest confidence?
+        // recognise a single letter, uppercase ASCII only, black on white.
+        var ocrad_options = {
+            charset: 'ascii'
+        }
 
-        // once all workers have finished, return the array.
+        // prepare results array
         var letters = [];
         for(i = 0; i < 16; i++) {
-            var letter = '?';
-
-            letters.push(letter);
+            letters.push('?');
         }
+
+        // total video dimensons
+        var w = video.videoWidth;
+        var h = video.videoHeight;
+       
+        // dimensions and top left coordinates of square crop preview 
+        var grid_width = Math.min(w, h); 
+        var grid_x = (w - grid_width)/2;
+        var grid_y = (h - grid_width)/2;
+
+        // side of a single letter cell
+        var lw = grid_width / 4;
+
+        // For each letter, crop the corresponding part of the still frame and try to recognize it.
+        for(var i = 0; i < 4; i++) {
+            for(var j = 0; j < 4; j++) {
+                var canvas = document.createElement("canvas");
+                canvas.width = lw;
+                canvas.height = lw;
+                var ctx = canvas.getContext("2d");
+                ctx.drawImage(video, grid_x + i * lw, grid_y + j * lw, lw, lw, 0, 0, lw, lw);
+
+                // try to adjust contrast, apply vignette, etc.
+                ctx2 = prepare_ocr(ctx, lw);
+
+                // TODO: rotation needs to be added before OCR step...
+                letters[4*j + i] = OCRAD(ctx, ocrad_options)
+
+                $("body").append(canvas);
+            }
+        }
+
         cb(letters);
     }
 
     function reset() {
         $(video).show();
         video.play();
+    }
+
+    function prepare_ocr(ctx, w) {
+        var imageData = ctx.getImageData(0, 0, w, w);
+        var data = imageData.data;
+        
+        // find black and white points by taking some samples
+        var white = 0;
+        var black = 255;
+        var sample_distance = data.length / 4 / 400;
+
+        for(var i = 0; i < data.length; i += sample_distance * 4) {
+            var grey = (data[i] + data[i+1] + data[i+2]) / 3;
+            white = Math.max(grey, white);
+            black = Math.min(grey, black);
+        }
+
+        // convert to gray scale and apply black/white level adjustment
+        for(var i = 0; i < data.length; i += 4) {
+            var avg = (data[i] + data[i+1] + data[i+2]) / 3;
+            var scaled = (1.0 * avg - black) / (white - black) * 255;
+            data[i]   = scaled;
+            data[i+1] = scaled;
+            data[i+2] = scaled;
+        }
+
+        // vignette, rotate, variants...
+
+        // return the modified image data
+        ctx.putImageData(imageData, 0, 0);
     }
 
     return {
