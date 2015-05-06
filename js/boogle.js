@@ -27,11 +27,18 @@ function boogle(msg) {
             return;
         }
 
-        if(!(w[0] in t)) {
-            t[w[0]] = {is_word:false};
+        var letter = w[0];
+        var w_tail = w.slice(1);
+        if(letter == "q" && w.length > 1 && w[1] == "u") {
+            letter = "qu";
+            w_tail = w.slice(2);
         }
 
-        trie_insert(t[w[0]], w.slice(1));
+        if(!(letter in t)) {
+            t[letter] = {is_word:false};
+        }
+
+        trie_insert(t[letter], w_tail);
     }
 
 
@@ -290,6 +297,14 @@ function capture(msg) {
                 result = result.replace("Ou", "Qu");
                 result = result.toUpperCase();
 
+                if (result.length == '0'){
+                    result = '?';
+                } else if (result[0] == 'Q') {
+                    result = "Qu";
+                } else {
+                    result = result[0];
+                }
+
                 letters[4*i + j] = result;
             }
         }
@@ -426,7 +441,7 @@ $(function() {
         msg.clearStatus();
         $("#buttons").show();
         // buttons and UI
-        $("#solve").on("click", function() { 
+        $("#solve, .grid").on("click", function() { 
             // recognize letters
             msg.setStatus("Processing captured image");
             var start_capture = new Date().getTime();
