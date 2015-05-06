@@ -169,20 +169,44 @@ function capture() {
         } : null);
 
         // Request the camera and display the preview
-        navigator.mediaDevices.getUserMedia({audio:false, video:true, frameRate:{ideal:25}})
-        .then(function(stream) {
-            video.src = window.URL.createObjectURL(stream);
-            video.onloadedmetadata = function(e) {
-                video.play();
-            };
-        })
-        .catch(function(err) {
-            $("#error")
-            .text("No camera accessible (" + err.name + ": " + err.message + ").")
-            .show();
+        var constraints = {
+            audio:false,
+            video:{}
+        };
 
-            $("#main").hide();
-        });
+        if(MediaStreamTrack.getSources != undefined) {
+            MediaStreamTrack.getSources(function(sources){
+                selectedId = null;
+                for(var i = 0; i < sources.length; i++) {
+                    if(sources[i].kind == "video" && sources[i].facing == "environment") {
+                        selectedId = sources[i].id;
+                    }
+                }
+                if (selectedId != null) {
+                    constraints.video.optional = [{sourceId: selectedId}];
+                }
+                connect();
+            });
+        } else {
+            connect();
+        }
+
+        function connect() {
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then(function(stream) {
+                video.src = window.URL.createObjectURL(stream);
+                video.onloadedmetadata = function(e) {
+                    video.play();
+                };
+            })
+            .catch(function(err) {
+                $("#error")
+                .text("No camera accessible (" + err.name + ": " + err.message + ").")
+                .show();
+
+                $("#main").hide();
+            });
+        }
     }
 
     // Capture the square crop of a video or image to a canvas of the same size 
