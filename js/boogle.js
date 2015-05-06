@@ -44,10 +44,18 @@ function boogle() {
 }
 
 function capture() {
-    var video = document.getElementById("capture-video");
-    var canvas = document.getElementById("capture-canvas");
+    var video   = document.getElementById("capture-video");
+    var img     = document.getElementById("capture-img");
+    var TESTING = true;
 
     function init(){
+        if(TESTING) {
+            $(video).hide();
+            return;
+        } else {
+            $(img).hide();
+        }
+
         // Polyfill from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
         navigator.mediaDevices = navigator.mediaDevices || ((navigator.mozGetUserMedia || navigator.webkitGetUserMedia) ? {
            getUserMedia: function(c) {
@@ -75,10 +83,44 @@ function capture() {
             $("#main").hide();
         });
     }
-    
+
+    // Capture the square crop of a video or image to a canvas of the same size 
+    function capture_to_canvas(elem) {
+        var canvas = document.createElement("canvas");
+        
+        // get the original dimensions
+        var sw, sh;
+        if(elem.tagName == "IMG") {
+            sw = elem.naturalWidth;
+            sh = elem.naturalHeight;
+        } else if (elem.tagName == "VIDEO") {
+            video.pause();
+            sw = elem.videoWidth;
+            sh = elem.videoHeight;
+        } else {
+            throw({name: "capture_to_canvas", message:"Expected VIDEO or IMG tag, got "+elem.tagName});
+        }
+
+        // dimensions and top left coordinates of square crop preview 
+        var cw = Math.min(sw, sh); 
+        var cx = (sw - cw)/2;
+        var cy = (sh - cw)/2;
+        canvas.width = cw;
+        canvas.height = cw;
+
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(elem, cx, cy, cw, cw, 0, 0, cw, cw);
+
+        return canvas;
+    }
+
     function capture(cb) {
-        // stop the video
-        video.pause();
+        var canvas;
+        if (TESTING) {
+            canvas = capture_to_canvas(img);
+        } else {
+            canvas = capture_to_canvas(video);
+        }
 
         // recognise a single letter, uppercase ASCII only, black on white.
         var ocrad_options = {
@@ -90,37 +132,40 @@ function capture() {
         for(i = 0; i < 16; i++) {
             letters.push('?');
         }
-
-        // total video dimensons
-        var w = video.videoWidth;
-        var h = video.videoHeight;
-       
-        // dimensions and top left coordinates of square crop preview 
-        var grid_width = Math.min(w, h); 
-        var grid_x = (w - grid_width)/2;
-        var grid_y = (h - grid_width)/2;
+        
+        var real_letters = "TNTBGDARELTESISH";
+        var correct_count = 0;
 
         // side of a single letter cell
-        var lw = grid_width / 4;
+        var lw = canvas.width / 4;
 
         // For each letter, crop the corresponding part of the still frame and try to recognize it.
         for(var i = 0; i < 4; i++) {
             for(var j = 0; j < 4; j++) {
-                var canvas = document.createElement("canvas");
-                canvas.width = lw;
-                canvas.height = lw;
-                var ctx = canvas.getContext("2d");
-                ctx.drawImage(video, grid_x + i * lw, grid_y + j * lw, lw, lw, 0, 0, lw, lw);
+                // create a new canvas for each letter
+                var c = document.createElement("canvas");
+                var ctx = c.getContext("2d");
+                c.width = lw;
+                c.height = lw;
+
+                // copy the square for this grid cell to the new canvas
+                ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
 
                 // try to adjust contrast, apply vignette, etc.
-                ctx2 = prepare_ocr(ctx, lw);
+                prepare_ocr(ctx, lw);
 
                 // TODO: rotation needs to be added before OCR step...
-                letters[4*j + i] = OCRAD(ctx, ocrad_options)
+                letters[4*i + j] = OCRAD(ctx, ocrad_options).toUpperCase();
 
-                $("body").append(canvas);
+                if (letters[4*i + j][0] == real_letters[4*i+j]) {
+                    correct_count++;
+                }
+
+                // display the prepared image for debugging
+                $("body").append(c);
             }
         }
+        console.log("correct: "+correct_count+" of "+real_letters.length);
 
         cb(letters);
     }
@@ -137,12 +182,12 @@ function capture() {
         // find black and white points by taking some samples
         var white = 0;
         var black = 255;
-        var sample_distance = data.length / 4 / 400;
+        var sample_distance = data.length / 100;
 
         for(var i = 0; i < data.length; i += sample_distance * 4) {
-            var grey = (data[i] + data[i+1] + data[i+2]) / 3;
-            white = Math.max(grey, white);
-            black = Math.min(grey, black);
+            var gray = (data[i] + data[i+1] + data[i+2]) / 3;
+            white = Math.max(gray, white);
+            black = Math.min(gray, black);
         }
 
         // convert to gray scale and apply black/white level adjustment
@@ -154,7 +199,62 @@ function capture() {
             data[i+2] = scaled;
         }
 
-        // vignette, rotate, variants...
+        // find a circle enclosing the letter, but nothing else (a circle that has no black pixels)
+        var c_max_r_iterations = 10;
+        var c_offset = Math.round(Math.max(4, 0.2 * w));
+        var c_step = Math.round(Math.max(1, 0.05 * w));
+
+        var best_r = w/2;
+        var best_cx = w/2;
+        var best_cy = w/2;
+        var best_sum = 0;
+
+        var rmin = 0.2 * w;
+        var rmax = 0.5 * w;
+
+        var cos = [];
+        var sin = [];
+        for(var i = 0; i < 360; i += 10) {
+            cos.push(Math.cos(2*Math.PI * i / 360));
+            sin.push(Math.sin(2*Math.PI * i / 360));
+        }
+
+        for(var r = rmin; r < rmax; r += Math.max(1,(rmin - rmax)/c_max_r_iterations)) {
+            for(var cx = w/2 - c_offset; cx < w/2 + c_offset; cx += c_step) { 
+                for(var cy = w/2 - c_offset; cy < w/2 + c_offset; cy += c_step) { 
+                    var sum = 0;
+                    for(var i = 0; i < cos.length; i++) {
+                        var x = Math.round(cx + r * cos[i]);
+                        var y = Math.round(cy + r * sin[i]);
+                        var luma = data[4 * (x + y * w)];
+                        if ( luma > 200) {
+                            sum += luma;
+                        }
+                        if (x < 0 || x > w || y < 0 || y > w) {
+                            sum = 0;
+                            break;
+                        }
+                    }
+                    if (sum > best_sum) {
+                        best_sum = sum;
+                        best_cx = cx;
+                        best_cy = cy;
+                        best_r = r;
+                    }
+                }
+            }
+        }
+
+        // apply the vignette with the given radius
+        for(var x = 0; x < w; x++) {
+            for(var y = 0; y < w; y++) {
+                if ( Math.sqrt(Math.pow(best_cx - x, 2) + Math.pow(best_cy - y,2)) > best_r ) {
+                    data[4 * (x + y * w)] = 255;
+                    data[4 * (x + y * w) + 1] = 255;
+                    data[4 * (x + y * w) + 2] = 255;
+                }
+            }
+        }
 
         // return the modified image data
         ctx.putImageData(imageData, 0, 0);
@@ -218,4 +318,5 @@ $(function() {
         c.reset();
     });
 
+    setTimeout(function(){$("#solve").trigger("click");}, 500);
 });
