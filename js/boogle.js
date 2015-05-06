@@ -291,9 +291,6 @@ function capture(msg) {
                 result = result.toUpperCase();
 
                 letters[4*i + j] = result;
-
-                // display the prepared image for debugging
-                $("body").append(c);
             }
         }
 
