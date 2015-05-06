@@ -155,11 +155,23 @@ function capture() {
                 prepare_ocr(ctx, lw);
 
                 // TODO: rotation needs to be added before OCR step...
-                letters[4*i + j] = OCRAD(ctx, ocrad_options).toUpperCase();
+                // recognize a character string
+                var result = OCRAD(ctx, ocrad_options);
 
-                if (letters[4*i + j][0] == real_letters[4*i+j]) {
+                // correct common mismatches
+                result = result.replace("l", "I");
+                result = result.replace("|", "I");
+                result = result.replace("1", "I");
+                result = result.replace("0", "O");
+                result = result.replace("°", "O");
+                result = result.replace(" ", "");
+                result = result.replace("_", "");
+                result = result.toUpperCase();
+
+                if (result == real_letters[4*i+j]) {
                     correct_count++;
                 }
+                letters[4*i + j] = result;
 
                 // display the prepared image for debugging
                 $("body").append(c);
