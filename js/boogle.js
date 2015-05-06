@@ -1,4 +1,4 @@
-function boogle() {
+function boogle(msg) {
     var dict = {};
     var min_length = 3;
 
@@ -145,7 +145,7 @@ function boogle() {
     };
 }
 
-function capture() {
+function capture(msg) {
     var video   = document.getElementById("capture-video");
     var img     = document.getElementById("capture-img");
     var TESTING = false;
@@ -200,11 +200,8 @@ function capture() {
                 };
             })
             .catch(function(err) {
-                $("#error")
-                .text("No camera accessible (" + err.name + ": " + err.message + ").")
-                .show();
-
-                $("#main").hide();
+                msg.setStatus("No camera accessible (" + err.name + ": " + err.message + ").");
+                $("#main, #buttons").hide();
             });
         }
     }
@@ -401,62 +398,85 @@ function capture() {
 }
 
 $(function() {
+
+    // allows some ui access to models
+    msg = {
+        setStatus: function(message) {
+            $("#status").text(message).show();
+        },
+        clearStatus: function() {
+            $("#status").empty().hide();
+        }
+    };
+
+    $("#buttons").hide();
+
+    // promises could be used to wait for both initialisations to finish before starting the UI.
+    //var promises = [];
+
     // initiate solver and load dictionary
-    b = boogle();
+    msg.setStatus("Initialising dictionary");
+    b = boogle(msg);
     b.init("words/enable1.txt");
 
     // capture
-    c = capture();
+    msg.setStatus("Requesting to access the camera");
+    c = capture(msg);
     c.init();
 
-    // TODO: we should show a status, and wait with initializing the buttons,
-    // until both camera and dictionary are initialised.
-
-    // buttons and UI
-    $("#solve").on("click", function() { 
-        // recognize letters
-        c.capture(function(letters){
-            // display recognized letters
-            $("#grid").empty().addClass("static");
-            for (var i = 0; i < letters.length; i++) {
-                $("<li>").text(letters[i]).appendTo($("#grid"));    
-            }
-
-            // find all words in the grid
-            results = b.solve(letters, function(words) {
-                // display found words
-                $("#words").empty();
-
-                for(var i = 0; i < words.length; i++) {
-                    var len = words[i].word.length;
-                    //if(len > 8) len = 8;
-
-                    $("<li>")
-                        .text(words[i].word)
-                        .addClass("word-length-" + len)
-                        .on("click mouseover", words[i].positions, function(e){
-                            var positions = e.data;
-                            letter_lis = $("#grid li").removeClass("lit");
-                            $("#words li").removeClass("lit");
-                            $(this).addClass("lit");
-                            for(var j = 0; j < positions.length; j++) {
-                                letter_lis.eq(positions[j]).addClass("lit");
-                            }
-                        })
-                        .appendTo($("#words"));
+    // all initialised, let the user play
+    function startUI() {
+        msg.clearStatus();
+        $("#buttons").show();
+        // buttons and UI
+        $("#solve").on("click", function() { 
+            // recognize letters
+            msg.setStatus("Processing captured image");
+            c.capture(function(letters){
+                // display recognized letters
+                $("#grid").empty().addClass("static");
+                for (var i = 0; i < letters.length; i++) {
+                    $("<li>").text(letters[i]).appendTo($("#grid"));    
                 }
+
+                // find all words in the grid
+                msg.setStatus("Solving the puzzle");
+                results = b.solve(letters, function(words) {
+                    // display found words
+                    $("#words").empty();
+
+                    for(var i = 0; i < words.length; i++) {
+                        var len = words[i].word.length;
+                        //if(len > 8) len = 8;
+
+                        $("<li>")
+                            .text(words[i].word)
+                            .addClass("word-length-" + len)
+                            .on("click mouseover", words[i].positions, function(e){
+                                var positions = e.data;
+                                letter_lis = $("#grid li").removeClass("lit");
+                                $("#words li").removeClass("lit");
+                                $(this).addClass("lit");
+                                for(var j = 0; j < positions.length; j++) {
+                                    letter_lis.eq(positions[j]).addClass("lit");
+                                }
+                            })
+                            .appendTo($("#words"));
+                    }
+                    msg.clearStatus();
+                });
             });
         });
-    });
 
-    $("#reset").on("click", function() {
-        $("#grid, #words").removeClass("static").empty();
-        for (i = 0; i < 16; i++) {
-            $("<li>").appendTo($("#grid"));    
-        }
-        c.reset();
-    });
+        $("#reset").on("click", function() {
+            $("#grid, #words").removeClass("static").empty();
+            for (i = 0; i < 16; i++) {
+                $("<li>").appendTo($("#grid"));    
+            }
+            c.reset();
+        });
 
-    // for testing only
-    //setTimeout(function(){$("#solve").trigger("click");}, 500);
+    }
+
+    startUI();
 });
