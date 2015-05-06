@@ -1,16 +1,30 @@
 function boogle() {
-    dict = {};
+    var dict = {};
 
-    function make_dict() {
+    function make_dict(dict_path){
+        $.get(dict_path, function(data) {
+            var words = data.split("\n");
+            _.each(words, function(word) {
+                trie_insert(dict, word);
+            });
+        });
     }
 
-    function is_word(s) {
-        return s in dict;
+    function trie_insert(t, w) {
+        if (w.length == 0) {
+            return;
+        }
+
+        if(!(w[0] in t)) {
+            t[w[0]] = {};   
+        }
+
+        trie_insert(t[w[0]], w.slice(1));
     }
 
     function mark(state, x, y) {
         return state | ((1 << x) * 4 + y);
-    };
+    }
 
 
     function seen(state, x, y) {
@@ -35,10 +49,8 @@ function boogle() {
     }
 
 
-    // init
-    make_dict();
-
     return {
+        init: make_dict,
         solve: solve
     };
 }
@@ -275,7 +287,8 @@ function capture() {
 
 $(function() {
     // test solver
-    b = boogle($);
+    b = boogle();
+    b.init("words/test1.txt");
     b.solve(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O'], function(sol){
         console.log(sol);
     });
