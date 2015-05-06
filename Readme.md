@@ -9,12 +9,12 @@ Boogle is a web-app which solves such a grid by finding all dictionary words wit
 This project is a work in progress. A number of important features are still missing:
 
 * Rotating characters before the OCR step, as cubes may fall in any orientation.
-* Differentiating between W and M (there is a thin line on the cube to indicate the base)
-* Handling the letter "Qu", as currently only single characters are used
-* Testing on mobile devices and further improving OCR preparation, and run character recognition and preparation in separate threads for performance.
+* Once rotation is added, differentiating between W and M (there is a thin line on the cube to indicate the base).
+* Multi-threading, and promise-based non-blocking user interface.
 
+It would also be nice to allow manual input or correction of characters, rather than always relying on the OCR.
 ## Acknowledgements
 
-* [ocrad.js](https://github.com/antimatter15/ocrad.js) (GPL v3) is a Javascript port of the OCRAD ocr program. It is used unchanged.
-* Production versions of jQuery (MIT) and underscore.js (MIT) are also used unchanged.
-* The game rules for Boggle are protected by copyright and trademark by Hasbro. This application does not actually allow playing the game, but rather calculates solutions to an interesting problem posed by its premise.
+* [ocrad.js](https://github.com/antimatter15/ocrad.js) (GPL v3) is a Javascript port of the OCRAD ocr program.
+* Production versions of jQuery (MIT) and underscore.js (MIT).
+* The game rules for Boggle are protected by copyright and trademark by Hasbro. This application does not actually allow playing the game, but rather calculates solutions to an interesting problem.
