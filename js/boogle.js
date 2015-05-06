@@ -1,5 +1,6 @@
 function boogle() {
     var dict = {};
+    var min_length = 3;
 
     function make_dict(dict_path){
         $.get(dict_path, function(data) {
@@ -18,7 +19,6 @@ function boogle() {
         _.each(words, function(word) {
             trie_insert(t, word);
         });
-        console.log(t);
     }
 
     function trie_insert(t, w) {
@@ -81,20 +81,17 @@ function boogle() {
         }
         
         var neighbours = unseen_neighbours(state, x, y);
-        console.log([partial, x, y, state, neighbours, trie]);
+        //console.log([partial, x, y, state, neighbours, trie]);
         for(var i = 0; i < neighbours.length; i++) {
             var next_x = neighbours[i].x;
             var next_y = neighbours[i].y;
             var next_letter = letter_at(letters, next_x, next_y);
             if(next_letter in trie) {
-                console.log(partial, ": go", next_letter);
                 recursive_solve(words, letters,
                         mark(state, next_x, next_y),
                         partial + next_letter,
                         trie[next_letter],
                         next_x, next_y);
-            } else {
-                console.log(partial, ": no", next_letter);
             }
         }
     }
@@ -114,8 +111,10 @@ function boogle() {
             }
         }
 
-        // sort by length
-        words = _.sortBy(words, function(w) {return -w.word.length;});
+        // sort by length and then alphabetically
+        words = _.sortBy(words, function(w) {
+            return "_".repeat(w.word.length) + w.word;
+        });
 
         // convert states to list of indices
         words = _.each(words, function(w) {
@@ -127,13 +126,18 @@ function boogle() {
             }
         });
 
-        // TODO filter out duplicate words
+        // filter out duplicate words
+        words = _.uniq(words, false, function(w) {
+            return w.word;
+        });
+
+
+        // filter out short words
+        words = _.filter(words, function(w) { return w.word.length >= min_length; });
 
         // finally, give resulting array to the callback
-        console.log(words);
         cb(words);
     }
-
 
     return {
         init: make_dict,
@@ -169,7 +173,6 @@ function capture() {
         .then(function(stream) {
             video.src = window.URL.createObjectURL(stream);
             video.onloadedmetadata = function(e) {
-                console.log("play");
                 video.play();
             };
         })
@@ -376,7 +379,7 @@ function capture() {
 $(function() {
     // test solver
     b = boogle();
-    b.init("words/test1.txt");
+    b.init("words/enable1.txt");
 
     // capture
     c = capture();
@@ -396,9 +399,14 @@ $(function() {
             results = b.solve(letters, function(words) {
                 // display found words
                 $("#words").empty();
+
                 for(var i = 0; i < words.length; i++) {
+                    var len = words[i].word.length;
+                    //if(len > 8) len = 8;
+
                     $("<li>")
                         .text(words[i].word)
+                        .addClass("word-length-" + len)
                         .on("click mouseover", words[i].positions, function(e){
                             var positions = e.data;
                             letter_lis = $("#grid li").removeClass("lit");

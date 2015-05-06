@@ -65,13 +65,18 @@ body {
 
 
 .grid.static li {
-    border-color:#696;
-    background-color:#ccc;
+    background-color:#fff;
+    border-color:#fff;
 }
 
-.grid.static li.lit{
-    background-color:#fff;
-    box-shadow:0 0 10px 3px #cfc;
+.grid.static li, #words li{
+    opacity:0.8;
+    box-shadow:none;
+}
+
+.grid.static li.lit, #words li.lit{
+    opacity:1;
+    box-shadow:0 0 10px 3px #fff;
 }
 
 #words {
@@ -87,15 +92,28 @@ body {
     font-size:12pt;
 }
 
-#words li.lit {
-    background-color:#999;
-}
 
 #words::after {
     content: " ";
     display:block;
     clear:both;
 }
+
+#words li.word-length-3  { background-color:hsl(190, 50%, 30%); }
+#words li.word-length-4  { background-color:hsl(160, 50%, 30%); }
+#words li.word-length-5  { background-color:hsl(130, 50%, 30%); }
+#words li.word-length-6  { background-color:hsl(100, 50%, 30%); }
+#words li.word-length-7  { background-color:hsl(70,  50%, 30%); }
+#words li.word-length-8  { background-color:hsl(40,  50%, 30%); }
+
+#words li.word-length-9  { background-color:hsl(35,  60%, 40%); }
+#words li.word-length-10 { background-color:hsl(30,  60%, 40%); }
+#words li.word-length-11 { background-color:hsl(25,  60%, 40%); }
+#words li.word-length-12 { background-color:hsl(20,  60%, 40%); }
+#words li.word-length-13 { background-color:hsl(15,  60%, 40%); }
+#words li.word-length-14 { background-color:hsl(10,  60%, 40%); }
+#words li.word-length-15 { background-color:hsl(5,   60%, 40%); }
+#words li.word-length-16 { background-color:hsl(0,   60%, 40%); }
 
 button {
     border-radius:10px;
