@@ -148,7 +148,7 @@ function boogle() {
 function capture() {
     var video   = document.getElementById("capture-video");
     var img     = document.getElementById("capture-img");
-    var TESTING = true;
+    var TESTING = false;
 
     function init(){
         if(TESTING) {
@@ -433,5 +433,6 @@ $(function() {
         c.reset();
     });
 
-    setTimeout(function(){$("#solve").trigger("click");}, 500);
+    // for testing only
+    //setTimeout(function(){$("#solve").trigger("click");}, 500);
 });

@@ -4,6 +4,14 @@ Boggle (tm) is a word game: There are 16 letter cubes, which are cast into a 4-b
 
 Boogle is a web-app which solves such a grid by finding all dictionary words within the grid. The grid is input to the program by scanning it with a camera. Some simple transformations are applied to the image, and optical character recognition is used to try and recognize each character.
 
+## Status
+
+This project is a work in progress. A number of important features are still missing:
+
+* Rotating characters before the OCR step, as cubes may fall in any orientation.
+* Differentiating between W and M (there is a thin line on the cube to indicate the base)
+* Handling the letter "Qu", as currently only single characters are used
+* Testing on mobile devices and further improving OCR preparation, and run character recognition and preparation in separate threads for performance.
 
 ## Acknowledgements
 
