@@ -432,7 +432,10 @@ $(function() {
         $("#solve").on("click", function() { 
             // recognize letters
             msg.setStatus("Processing captured image");
+            var start_capture = new Date().getTime();
             c.capture(function(letters){
+                var stop_capture = new Date().getTime();
+                console.log("Recognized letters in", stop_capture-start_capture, "ms.");
                 // display recognized letters
                 $("#grid").empty().addClass("static");
                 for (var i = 0; i < letters.length; i++) {
@@ -441,13 +444,15 @@ $(function() {
 
                 // find all words in the grid
                 msg.setStatus("Solving the puzzle");
+                var start_solve = new Date().getTime();
                 results = b.solve(letters, function(words) {
+                    var stop_solve = new Date().getTime();
+                    console.log("Found", words.length, "words in", stop_solve-start_solve, "ms.");
                     // display found words
                     $("#words").empty();
 
                     for(var i = 0; i < words.length; i++) {
                         var len = words[i].word.length;
-                        //if(len > 8) len = 8;
 
                         $("<li>")
                             .text(words[i].word)
