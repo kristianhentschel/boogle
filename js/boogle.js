@@ -4,47 +4,125 @@ function boogle() {
     function make_dict(dict_path){
         $.get(dict_path, function(data) {
             var words = data.split("\n");
-            _.each(words, function(word) {
-                trie_insert(dict, word);
-            });
+            words = _.map(words, function(s) { return s.trim(); });
+            words = _.filter(words, function(s) { return s.length > 0;});
+            trie_build(dict, words);
+        });
+    }
+    
+    // a word in the trie is valid, if there is a path from the top to its final letter
+    // and the final letter has is_word == true.
+
+    function trie_build(t, words){
+        t = {is_word: false};
+        _.each(words, function(word) {
+            trie_insert(dict, word);
         });
     }
 
     function trie_insert(t, w) {
         if (w.length == 0) {
+            t.is_word = true;
             return;
         }
 
         if(!(w[0] in t)) {
-            t[w[0]] = {};   
+            t[w[0]] = {is_word:false};
         }
 
         trie_insert(t[w[0]], w.slice(1));
     }
 
+
+    // we use a bit field to keep track of the letters we have visited for this branch of the search tree.
     function mark(state, x, y) {
-        return state | ((1 << x) * 4 + y);
+        return state | (1 << (x * 4 + y));
     }
 
-
     function seen(state, x, y) {
-        return state & ((1 << x) * 4 + y);
+        return (state & (1 << (x * 4 + y))) != 0;
+    }
+
+    function unseen_neighbours(state, cx, cy) {
+        neighbours = [];
+        for(i = -1; i <= 1; i++) {
+            for(j = -1; j <= 1; j++) {
+                var x = cx + i;
+                var y = cy + j;
+                if (x == cx && y == cy) continue;
+                if (x < 0 || x > 3) continue;
+                if (y < 0 || y > 3) continue;
+                if (seen(state, x, y)) continue;
+
+                neighbours.push({x: x, y: y});
+            }
+        }
+        return neighbours;
+    }
+
+    function letter_at(letters, x, y) {
+        return letters[x*4+y];
+    }
+
+    // words: the accumulator array
+    // letters: the row-major grid of available letters (constant)
+    // state: a bit field with all positions (those contributing to partial) marked.
+    // partial: a character array of all characters seen so far.
+    // trie: the trie node corresponding to the current state, it has all branches that could follow partial.
+    // x, y: the current position in the grid.
+    function recursive_solve(words, letters, state, partial, trie, x, y) {
+        console.log([partial, x, y, state]);
+        if(trie.is_word) {
+            words.push({word: partial, state: state}); 
+        }
+        
+        neighbours = unseen_neighbours(state, x, y);
+        for(var i = 0; i < neighbours.length; i++) {
+            var next_x = neighbours[i].x;
+            var next_y = neighbours[i].y;
+            var next_letter = letter_at(letters, next_x, next_y);
+            if(next_letter in trie) {
+                recursive_solve(words, letters,
+                        mark(state, next_x, next_y),
+                        partial + next_letter,
+                        trie[next_letter],
+                        next_x, next_y);
+            }
+        }
     }
 
     function solve(letters, cb) {
-        // generate all valid combinations of letters
-        words = [
-            {word: "Foo", positions: [1, 2, 3]},
-            {word: "Bar", positions: [7, 3, 4]}
-        ];
+        var words = [];
 
-        // filter out duplicates
+        letters = _.map(letters, function(s){return s.toLowerCase();});
 
-        // filter out everything that's not a word
+        // for each start position, use recursion to explore search space.
+        for(var i = 0; i < 4; i++) {
+            for(var j = 0; j < 4; j++) {
+                var letter = letters[i*4+j];
+                if (letter in dict) {
+                    recursive_solve(words, letters, mark(0, i, j), letter, dict[letter], i, j);
+                }
+            }
+        }
 
         // sort by length
+        words = _.sortBy(words, function(w) {return -w.word.length;});
+
+        // convert states to list of indices
+        words = _.each(words, function(w) {
+            w.positions = [];
+            for(var i = 0; i < 16; i++) {
+                if (w.state & (1 << i)) {
+                    w.positions.push(i);
+                }
+            }
+        });
+
+        // TODO filter out duplicate words
 
         // finally, give resulting array to the callback
+        console.log(words);
         cb(words);
     }
 
@@ -176,6 +254,8 @@ function capture() {
                 result = result.replace("°", "O");
                 result = result.replace(" ", "");
                 result = result.replace("_", "");
+                result = result.replace("\n", "");
+                result = result.replace("Ou", "Qu");
                 result = result.toUpperCase();
 
                 letters[4*i + j] = result;
@@ -289,9 +369,6 @@ $(function() {
     // test solver
     b = boogle();
     b.init("words/test1.txt");
-    b.solve(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O'], function(sol){
-        console.log(sol);
-    });
 
     // capture
     c = capture();
