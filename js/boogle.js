@@ -377,13 +377,16 @@ function capture() {
 }
 
 $(function() {
-    // test solver
+    // initiate solver and load dictionary
     b = boogle();
     b.init("words/enable1.txt");
 
     // capture
     c = capture();
     c.init();
+
+    // TODO: we should show a status, and wait with initializing the buttons,
+    // until both camera and dictionary are initialised.
 
     // buttons and UI
     $("#solve").on("click", function() { 
