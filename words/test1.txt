@@ -45,3 +45,5 @@ tan
 tare
 tart
 tear
+she
+seg

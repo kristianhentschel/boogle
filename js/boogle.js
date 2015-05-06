@@ -14,10 +14,11 @@ function boogle() {
     // and the final letter has is_word == true.
 
     function trie_build(t, words){
-        t = {is_word: false};
+        t.is_word = false;
         _.each(words, function(word) {
-            trie_insert(dict, word);
+            trie_insert(t, word);
         });
+        console.log(t);
     }
 
     function trie_insert(t, w) {
@@ -36,11 +37,11 @@ function boogle() {
 
     // we use a bit field to keep track of the letters we have visited for this branch of the search tree.
     function mark(state, x, y) {
-        return state | (1 << (x * 4 + y));
+        return state | (1 << coord_to_pos(x, y));
     }
 
     function seen(state, x, y) {
-        return (state & (1 << (x * 4 + y))) != 0;
+        return (state & (1 << coord_to_pos(x, y))) != 0;
     }
 
     function unseen_neighbours(state, cx, cy) {
@@ -60,8 +61,12 @@ function boogle() {
         return neighbours;
     }
 
+    function coord_to_pos(x, y) {
+        return x + y * 4;
+    }
+
     function letter_at(letters, x, y) {
-        return letters[x*4+y];
+        return letters[coord_to_pos(x, y)];
     }
 
     // words: the accumulator array
@@ -71,22 +76,25 @@ function boogle() {
     // trie: the trie node corresponding to the current state, it has all branches that could follow partial.
     // x, y: the current position in the grid.
     function recursive_solve(words, letters, state, partial, trie, x, y) {
-        console.log([partial, x, y, state]);
         if(trie.is_word) {
             words.push({word: partial, state: state}); 
         }
         
-        neighbours = unseen_neighbours(state, x, y);
+        var neighbours = unseen_neighbours(state, x, y);
+        console.log([partial, x, y, state, neighbours, trie]);
         for(var i = 0; i < neighbours.length; i++) {
             var next_x = neighbours[i].x;
             var next_y = neighbours[i].y;
             var next_letter = letter_at(letters, next_x, next_y);
             if(next_letter in trie) {
+                console.log(partial, ": go", next_letter);
                 recursive_solve(words, letters,
                         mark(state, next_x, next_y),
                         partial + next_letter,
                         trie[next_letter],
                         next_x, next_y);
+            } else {
+                console.log(partial, ": no", next_letter);
             }
         }
     }
@@ -97,11 +105,11 @@ function boogle() {
         letters = _.map(letters, function(s){return s.toLowerCase();});
 
         // for each start position, use recursion to explore search space.
-        for(var i = 0; i < 4; i++) {
-            for(var j = 0; j < 4; j++) {
-                var letter = letters[i*4+j];
+        for(var y = 0; y < 4; y++) {
+            for(var x = 0; x < 4; x++) {
+                var letter = letter_at(letters, y, x);
                 if (letter in dict) {
-                    recursive_solve(words, letters, mark(0, i, j), letter, dict[letter], i, j);
+                    recursive_solve(words, letters, mark(0, y, x), letter, dict[letter], y, x);
                 }
             }
         }
