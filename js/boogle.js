@@ -133,8 +133,6 @@ function capture() {
             letters.push('?');
         }
         
-        var real_letters = "TNTBGDARELTESISH";
-        var correct_count = 0;
 
         // side of a single letter cell
         var lw = canvas.width / 4;
@@ -168,16 +166,12 @@ function capture() {
                 result = result.replace("_", "");
                 result = result.toUpperCase();
 
-                if (result == real_letters[4*i+j]) {
-                    correct_count++;
-                }
                 letters[4*i + j] = result;
 
                 // display the prepared image for debugging
                 $("body").append(c);
             }
         }
-        console.log("correct: "+correct_count+" of "+real_letters.length);
 
         cb(letters);
     }
@@ -295,7 +289,7 @@ $(function() {
         // recognize letters
         c.capture(function(letters){
             // display recognized letters
-            $("#grid").empty();
+            $("#grid").empty().addClass("static");
             for (var i = 0; i < letters.length; i++) {
                 $("<li>").text(letters[i]).appendTo($("#grid"));    
             }
@@ -323,7 +317,7 @@ $(function() {
     });
 
     $("#reset").on("click", function() {
-        $("#grid, #words").empty();
+        $("#grid, #words").removeClass("static").empty();
         for (i = 0; i < 16; i++) {
             $("<li>").appendTo($("#grid"));    
         }
