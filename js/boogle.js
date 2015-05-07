@@ -606,7 +606,11 @@ function boogle_ui(options) {
         state.letters = [];
         state.words = [];
         grid.empty().removeClass("static");
+        for(var i = 0; i < 16; i ++) {
+            grid.append($("<li>"));
+        }
         words.empty();
+        video.get(0).play();
     }
 
     // === Event Handlers ===
@@ -643,6 +647,7 @@ function boogle_ui(options) {
     // The reset button was clicked, go back to image capture mode.
     function btn_reset() {
         if (!state.buttons_enabled) return;
+        console.log("btn_reset");
         do_reset();
     }
 
@@ -650,7 +655,7 @@ function boogle_ui(options) {
     // attach the main UI events
     function initButtonEvents() {
         buttons.children("#solve").on("click", btn_solve);
-        buttons.children("#reset").on("reset", btn_reset);
+        buttons.children("#reset").on("click", btn_reset);
     }
 
     // === Public Methods ===
