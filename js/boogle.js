@@ -1,9 +1,24 @@
-function boogle(msg) {
+// boogle-solve
+// options = {
+//      dict_path: "text1.txt", //mandatory path to dictionary file
+// }
+function boogle(options) {
     var dict = {};
     var min_length = 3;
 
-    function make_dict(dict_path){
-        $.get(dict_path, function(data) {
+    function init(){
+        var promise = new Promise(function(y, n) {
+            $.ajax(options.dict_path, {
+                // keep the promise:
+                success: y,
+                // break the promise and return an error
+                error: function(result){
+                    n({name:result.statusText, msg:"Could not load dictionary."});
+                }
+            });
+        });
+
+        return promise.then(function(data) {
             var words = data.split("\n");
             words = _.map(words, function(s) { return s.trim(); });
             words = _.filter(words, function(s) { return s.length > 0;});
@@ -147,7 +162,7 @@ function boogle(msg) {
     }
 
     return {
-        init: make_dict,
+        init: init,
         solve: solve
     };
 }
@@ -621,7 +636,7 @@ function boogle_ui(options) {
         if (state.options.solve) {
            state.solve = state.options.solve;
         } else {
-           state.solve = boogle();
+           state.solve = boogle({dict_path: "words/enable1.txt"});
         }
 
         // instantiate capture
@@ -637,11 +652,11 @@ function boogle_ui(options) {
         // initialise the solver and capture objects, which can take quite some time.
         setStatus("Initialising camera capture and solver dictionary.");
         var promise_capture = state.capture.init();
-        //var promise_solve   = state.solve.init();
+        var promise_solve   = state.solve.init();
 
-        Promise.all([promise_capture])
+        Promise.all([promise_capture, promise_solve])
             .then(function(results) {
-                console.log("ui.init:", results);
+                console.log("ui.init then results:", results);
 
                 // deal with results from promise_capture
                 capture_result = results[0];
