@@ -534,7 +534,7 @@ function boogle_ui(options) {
     // word is a jQuery-wrapped DOM element
     // positions is an array of letter positions [0,1,...15].
     function highlight(word, positions){
-        word.addClass("lit");
+        console.log(word);
 
         var letter_lis  = grid.children("li");
         var word_lis    = words.children("li");
@@ -545,6 +545,7 @@ function boogle_ui(options) {
         for(var j = 0; j < positions.length; j++) {
             letter_lis.eq(positions[j]).addClass("lit");
         }
+        word.addClass("lit");
     }
 
     // asynchronously:
