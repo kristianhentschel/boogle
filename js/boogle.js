@@ -505,7 +505,7 @@ function boogle_ui(options) {
         for (var i = 0; i < letters.length; i++) {
             $("<li>")
                 .text(letters[i])
-                .bind("click", {pos: i}, btn_correct)
+                .bind("click", {pos: i, letter: letters[i]}, btn_correct)
                 .appendTo($("#grid"));
         }
     }
@@ -594,6 +594,7 @@ function boogle_ui(options) {
     // displays the new letters.
     // calls do_solve.
     function do_correct(pos, letter) {
+        console.log("do_correct:", letter);
         state.letters[pos] = letter;
         display_letters();
         do_solve();
@@ -621,12 +622,13 @@ function boogle_ui(options) {
         console.log("btn_correct: pos = ", pos);
 
         // TODO: A better UI element than this ;)
-        var letter = window.prompt("Correct letter:");
+        var letter = window.prompt("Correct letter:", e.data.letter);
         if (letter != null && letter != "") {
-            letter = letter[0].toUpperCase;
+            letter = letter[0].toUpperCase();
             if (letter == "Q")
                 letter = "Qu";
 
+            console.log(pos, letter);
             do_correct(pos, letter);
         }
     }
