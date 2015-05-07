@@ -1,6 +1,15 @@
 # Boogle
+Boogle is an in-browser solver for the popular word game Boggle(tm), using a camera and optical character recognition to read the board, and finding all solutions from a large dictionary.
 
-Boggle (tm) is a word game: There are 16 letter cubes, which are cast into a 4-by-4 grid. Players aim to find unique words of three characters or more, by combining adjacent letters horizontally, vertically, or diagonally. Letters must be used in order of their interconnection, and each letter cube may only be used once per word.
+## Demo
+There is a [live demo](http://kristianhentschel.github.io/boogle/). It requires a recent Chrome or Firefox and a camera.
+
+Scan the board by aligning it so each letter fits in a square. Non-upright letter cubes are not supported yet.
+
+*Try scanning some of [these images](https://www.google.com/search?site=imghp&q=boggle+board&tbm=isch) from a computer screen if you don't own a physical copy of the game.*
+
+## Background
+Boggle(tm) is a word game: There are 16 letter cubes, which are cast into a 4-by-4 grid. Players aim to find unique words of three characters or more, by combining adjacent letters horizontally, vertically, or diagonally. Letters must be used in order of their interconnection, and each letter cube may only be used once per word.
 
 Boogle is a web-app which solves such a grid by finding all dictionary words within the grid. The grid is input to the program by scanning it with a camera. Some simple transformations are applied to the image, and optical character recognition is used to try and recognize each character.
 
