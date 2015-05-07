@@ -118,47 +118,49 @@ function boogle(options) {
         }
     }
 
-    function solve(letters, cb) {
-        var words = [];
+    function solve(letters) {
+        var promise = new Promise(function(promise_y,promise_n){
+            var words = [];
 
-        letters = _.map(letters, function(s){return s.toLowerCase();});
+            letters = _.map(letters, function(s){return s.toLowerCase();});
 
-        // for each start position, use recursion to explore search space.
-        for(var y = 0; y < 4; y++) {
-            for(var x = 0; x < 4; x++) {
-                var letter = letter_at(letters, y, x);
-                if (letter in dict) {
-                    recursive_solve(words, letters, mark(0, y, x), letter, dict[letter], y, x);
+            // for each start position, use recursion to explore search space.
+            for(var y = 0; y < 4; y++) {
+                for(var x = 0; x < 4; x++) {
+                    var letter = letter_at(letters, y, x);
+                    if (letter in dict) {
+                        recursive_solve(words, letters, mark(0, y, x), letter, dict[letter], y, x);
+                    }
                 }
             }
-        }
 
-        // sort by length and then alphabetically
-        words = _.sortBy(words, function(w) {
-            return "_".repeat(w.word.length) + w.word;
-        });
+            // sort by length and then alphabetically
+            words = _.sortBy(words, function(w) {
+                return "_".repeat(w.word.length) + w.word;
+            });
 
-        // convert states to list of indices
-        words = _.each(words, function(w) {
-            w.positions = [];
-            for(var i = 0; i < 16; i++) {
-                if (w.state & (1 << i)) {
-                    w.positions.push(i);
+            // convert states to list of indices
+            words = _.each(words, function(w) {
+                w.positions = [];
+                for(var i = 0; i < 16; i++) {
+                    if (w.state & (1 << i)) {
+                        w.positions.push(i);
+                    }
                 }
-            }
+            });
+
+            // filter out duplicate words
+            words = _.uniq(words, false, function(w) {
+                return w.word;
+            });
+
+            // filter out short words
+            words = _.filter(words, function(w) { return w.word.length >= min_length; });
+
+            // finally, give resulting array to the callback (fulfil the promise)
+            promise_y(words);
         });
-
-        // filter out duplicate words
-        words = _.uniq(words, false, function(w) {
-            return w.word;
-        });
-
-
-        // filter out short words
-        words = _.filter(words, function(w) { return w.word.length >= min_length; });
-
-        // finally, give resulting array to the callback
-        cb(words);
+        return promise;
     }
 
     return {
@@ -255,73 +257,92 @@ function capture(msg) {
         return canvas;
     }
 
-    function capture(cb) {
-        var canvas;
-        if (TESTING) {
-            canvas = capture_to_canvas(img);
-        } else {
-            canvas = capture_to_canvas(video);
-        }
+    function capture() {
+        var promise = new Promise(function(y,n){
+            var canvas;
 
-        // recognise a single letter, uppercase ASCII only, black on white.
-        var ocrad_options = {
-            charset: 'ascii'
-        }
-
-        // prepare results array
-        var letters = [];
-        for(i = 0; i < 16; i++) {
-            letters.push('?');
-        }
-        
-
-        // side of a single letter cell
-        var lw = canvas.width / 4;
-
-        // For each letter, crop the corresponding part of the still frame and try to recognize it.
-        for(var i = 0; i < 4; i++) {
-            for(var j = 0; j < 4; j++) {
-                // create a new canvas for each letter
-                var c = document.createElement("canvas");
-                var ctx = c.getContext("2d");
-                c.width = lw;
-                c.height = lw;
-
-                // copy the square for this grid cell to the new canvas
-                ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
-
-                // try to adjust contrast, apply vignette, etc.
-                prepare_ocr(ctx, lw);
-
-                // TODO: rotation needs to be added before OCR step...
-                // recognize a character string
-                var result = OCRAD(ctx, ocrad_options);
-
-                // correct common mismatches
-                result = result.replace("l", "I");
-                result = result.replace("|", "I");
-                result = result.replace("1", "I");
-                result = result.replace("0", "O");
-                result = result.replace("°", "O");
-                result = result.replace(" ", "");
-                result = result.replace("_", "");
-                result = result.replace("\n", "");
-                result = result.replace("Ou", "Qu");
-                result = result.toUpperCase();
-
-                if (result.length == '0'){
-                    result = '?';
-                } else if (result[0] == 'Q') {
-                    result = "Qu";
+            try {
+                if (TESTING) {
+                    canvas = capture_to_canvas(img);
                 } else {
-                    result = result[0];
+                    canvas = capture_to_canvas(video);
                 }
-
-                letters[4*i + j] = result;
+            } catch(err) {
+                console.log("error in capture_to_canvas", err);
+                n(err);
+                return;
             }
-        }
 
-        cb(letters);
+            // recognise a single letter, uppercase ASCII only, black on white.
+            var ocrad_options = {
+                charset: 'ascii'
+            }
+
+            // prepare results array
+            var letters = [];
+            for(i = 0; i < 16; i++) {
+                letters.push('?');
+            }
+            
+
+            // side of a single letter cell
+            var lw = canvas.width / 4;
+
+            // For each letter, crop the corresponding part of the still frame and try to recognize it.
+            for(var i = 0; i < 4; i++) {
+                for(var j = 0; j < 4; j++) {
+                    // create a new canvas for each letter
+                    var c = document.createElement("canvas");
+                    var ctx = c.getContext("2d");
+                    c.width = lw;
+                    c.height = lw;
+
+                    // copy the square for this grid cell to the new canvas
+                    ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
+
+                    // try to adjust contrast, apply vignette, etc.
+                    prepare_ocr(ctx, lw);
+
+                    // TODO: rotation needs to be added before OCR step...
+                    // recognize a character string
+                    var result;
+                    try {
+                        // TODO OCRAD can also be used as a promise, so we should do all asynchronously.
+                        result = OCRAD(ctx, ocrad_options);
+                    } catch(err) {
+                        console.log("error in OCRAD", err);
+                        n(err);
+                        return;
+                    }
+
+                    // correct common mismatches
+                    result = result.replace("l", "I");
+                    result = result.replace("|", "I");
+                    result = result.replace("1", "I");
+                    result = result.replace("0", "O");
+                    result = result.replace("°", "O");
+                    result = result.replace(" ", "");
+                    result = result.replace("_", "");
+                    result = result.replace("\n", "");
+                    result = result.replace("Ou", "Qu");
+                    result = result.toUpperCase();
+
+                    if (result.length == '0'){
+                        result = '?';
+                    } else if (result[0] == 'Q') {
+                        result = "Qu";
+                    } else {
+                        result = result[0];
+                    }
+
+                    letters[4*i + j] = result;
+                }
+            }
+
+            console.log(letters);
+            y(letters);
+        });
+        return promise;
     }
 
     function reset() {
@@ -466,17 +487,20 @@ function boogle_ui(options) {
     function disable_ui() {
         state.buttons_enabled = false;
         buttons.addClass("disabled");
+        console.log("disable_ui");
     }
 
     function enable_ui() {
         state.buttons_enabled = true;
         buttons.removeClass("disabled");
+        console.log("enable_ui");
     }
 
     // clears the letters grid.
     // displays letters.
     // registers event handlers for corrections.
     function display_letters() {
+        var letters = state.letters;
         $("#grid").empty().addClass("static");
         for (var i = 0; i < letters.length; i++) {
             $("<li>")
@@ -535,11 +559,13 @@ function boogle_ui(options) {
         
         var promise = state.capture.capture();
 
-        // success: function(result) {
-        //  state.letters = result.letters;
-        //  display_letters();
-        //  do_solve();
-        // }
+        return promise.then(function(result) {
+            clearStatus();
+            state.letters = result;
+            display_letters();
+        }).catch(function(err){
+            setStatus("Image processing failed. " + err.name);
+        }).then(do_solve);
     }
 
     // asynchronously:
@@ -552,12 +578,15 @@ function boogle_ui(options) {
         setStatus("Solving the puzzle.");
         var promise = state.solve.solve(state.letters);
 
-        // success: function(result){
-        //  state.words = result.words;
-        //  clearStatus();
-        //  display_words();
-        //  enable_ui();
-        // }
+        return promise.then(function(result){
+            state.words = result;
+            clearStatus();
+            display_words();
+            enable_ui();
+        }).catch(function(err){
+            console.log(err);
+            setStatus("Puzzle solving failed. " + err.name);
+        });
     }
 
     // asynchronously:
@@ -601,7 +630,9 @@ function boogle_ui(options) {
     // The solve button was clicked, capture the image and start the solver.
     // Alternatively, if we are in display mode, just solve again with corrections.
     function btn_solve() {
+        console.log("btn_solve");
         if (!state.buttons_enabled) return;
+
         if (state.mode == enum_capture) {
             do_capture(); //includes do_solve.
         } else {
@@ -618,8 +649,8 @@ function boogle_ui(options) {
 
     // attach the main UI events
     function initButtonEvents() {
-        buttons.children(".solve").on("click", btn_solve);
-        buttons.children(".reset").on("reset", btn_reset);
+        buttons.children("#solve").on("click", btn_solve);
+        buttons.children("#reset").on("reset", btn_reset);
     }
 
     // === Public Methods ===
