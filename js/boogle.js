@@ -160,7 +160,7 @@ function capture(msg) {
     function init(){
         if(TESTING) {
             $(video).hide();
-            return;
+            return Promise.resolve({name: "capture.init", msg: "testing mode, no need to try the video."});
         } else {
             $(img).hide();
         }
@@ -182,33 +182,30 @@ function capture(msg) {
         };
 
         if(MediaStreamTrack.getSources != undefined) {
-            MediaStreamTrack.getSources(function(sources){
-                selectedId = null;
-                for(var i = 0; i < sources.length; i++) {
-                    if(sources[i].kind == "video" && sources[i].facing == "environment") {
-                        selectedId = sources[i].id;
+            return new Promise(function(y,n){
+                MediaStreamTrack.getSources(function(sources){
+                    selectedId = null;
+                    for(var i = 0; i < sources.length; i++) {
+                        if(sources[i].kind == "video" && sources[i].facing == "environment") {
+                            selectedId = sources[i].id;
+                        }
                     }
-                }
-                if (selectedId != null) {
-                    constraints.video.optional = [{sourceId: selectedId}];
-                }
-                connect();
+                    if (selectedId != null) {
+                        constraints.video.optional = [{sourceId: selectedId}];
+                    }
+                    
+                    // fulfils the promise with the result of connect, another Promise.
+                    y(connect());
+                });
             });
         } else {
-            connect();
+            return connect();
         }
 
         function connect() {
-            navigator.mediaDevices.getUserMedia(constraints)
-            .then(function(stream) {
-                video.src = window.URL.createObjectURL(stream);
-                video.onloadedmetadata = function(e) {
-                    video.play();
-                };
-            })
-            .catch(function(err) {
-                msg.setStatus("No camera accessible (" + err.name + ": " + err.message + ").");
-                $("#main, #buttons").hide();
+            var promise = navigator.mediaDevices.getUserMedia(constraints);
+            return promise.then(function(stream) {
+                return window.URL.createObjectURL(stream);
             });
         }
     }
@@ -227,7 +224,7 @@ function capture(msg) {
             sw = elem.videoWidth;
             sh = elem.videoHeight;
         } else {
-            throw({name: "capture_to_canvas", message:"Expected VIDEO or IMG tag, got "+elem.tagName});
+            throw({name: "capture_to_canvas", msg:"Expected VIDEO or IMG tag, got "+elem.tagName});
         }
 
         // dimensions and top left coordinates of square crop preview 
@@ -409,91 +406,279 @@ function capture(msg) {
     };
 }
 
-$(function() {
+// The UI is the master driver for this app, it initialises the solver and ocr capture modules.
+// options = {
+//      solve: boogle({}),      // optional solver instance
+//      capture: capture({}),   // optional capture instance
+// }
+function boogle_ui(options) {
+    var status  = $("#status");
+    var main    = $("#main");
+    var grid    = $("#grid");
+    var video   = $("#capture-video");
+    var buttons = $("#buttons");
+    var words   = $("#words");
 
-    // allows some ui access to models
-    msg = {
-        setStatus: function(message) {
-            $("#status").text(message).show();
-        },
-        clearStatus: function() {
-            $("#status").empty().hide();
-        }
-    };
+    var enum_capture = 0;
+    var enum_display = 1;
 
-    $("#buttons").hide();
-
-    // promises could be used to wait for both initialisations to finish before starting the UI.
-    //var promises = [];
-
-    // initiate solver and load dictionary
-    msg.setStatus("Initialising dictionary");
-    b = boogle(msg);
-    b.init("words/enable1.txt");
-
-    // capture
-    msg.setStatus("Requesting to access the camera");
-    c = capture(msg);
-    c.init();
-
-    // all initialised, let the user play
-    function startUI() {
-        msg.clearStatus();
-        $("#buttons").show();
-        // buttons and UI
-        $("#solve, .grid").on("click", function() { 
-            // recognize letters
-            msg.setStatus("Processing captured image");
-            var start_capture = new Date().getTime();
-            c.capture(function(letters){
-                var stop_capture = new Date().getTime();
-                console.log("Recognized letters in", stop_capture-start_capture, "ms.");
-                // display recognized letters
-                $("#grid").empty().addClass("static");
-                for (var i = 0; i < letters.length; i++) {
-                    $("<li>").text(letters[i]).appendTo($("#grid"));    
-                }
-
-                // find all words in the grid
-                msg.setStatus("Solving the puzzle");
-                var start_solve = new Date().getTime();
-                results = b.solve(letters, function(words) {
-                    var stop_solve = new Date().getTime();
-                    console.log("Found", words.length, "words in", stop_solve-start_solve, "ms.");
-                    // display found words
-                    $("#words").empty();
-
-                    for(var i = 0; i < words.length; i++) {
-                        var len = words[i].word.length;
-
-                        $("<li>")
-                            .text(words[i].word)
-                            .addClass("word-length-" + len)
-                            .on("click mouseover", words[i].positions, function(e){
-                                var positions = e.data;
-                                letter_lis = $("#grid li").removeClass("lit");
-                                $("#words li").removeClass("lit");
-                                $(this).addClass("lit");
-                                for(var j = 0; j < positions.length; j++) {
-                                    letter_lis.eq(positions[j]).addClass("lit");
-                                }
-                            })
-                            .appendTo($("#words"));
-                    }
-                    msg.clearStatus();
-                });
-            });
-        });
-
-        $("#reset").on("click", function() {
-            $("#grid, #words").removeClass("static").empty();
-            for (i = 0; i < 16; i++) {
-                $("<li>").appendTo($("#grid"));    
-            }
-            c.reset();
-        });
-
+    var state = {
+        init: false,
+        options: {},
+        solve: null,
+        capture: null,
+        letters: [],
+        solution: [],
+        camera_ready: false,
+        ui_ready: false,
+        buttons_enabled: false,
+        mode: enum_capture
     }
 
-    startUI();
+    if (options != undefined) {
+        state.options = options;
+    }
+    
+    // === Private Methods ===
+    function setStatus(message) {
+        status.text(message).show();
+    }
+
+    function clearStatus() {
+        status.text("").hide();
+    }
+
+    function disable_ui() {
+        state.buttons_enabled = false;
+        buttons.addClass("disabled");
+    }
+
+    function enable_ui() {
+        state.buttons_enabled = true;
+        buttons.removeClass("disabled");
+    }
+
+    // clears the letters grid.
+    // displays letters.
+    // registers event handlers for corrections.
+    function display_letters() {
+        $("#grid").empty().addClass("static");
+        for (var i = 0; i < letters.length; i++) {
+            $("<li>")
+                .text(letters[i])
+                .bind("click", {pos: i}, btn_correct)
+                .appendTo($("#grid"));
+        }
+    }
+
+    // clears the words list.
+    // displays words.
+    // registers event handlers for highlighting.
+    function display_words() {
+        words.empty();
+
+        for(var i = 0; i < state.words.length; i++) {
+            var word = state.words[i];
+            var len = word.word.length;
+
+            $("<li>")
+                .text(word.word)
+                .addClass("word-length-" + len)
+                .on("click mouseover", {positions: word.positions}, function(e){
+                    highlight($(this), e.data.positions);
+                })
+                .appendTo(words);
+        }
+    }
+
+    // highlights the given word element and all letters identified by positions.
+    // word is a jQuery-wrapped DOM element
+    // positions is an array of letter positions [0,1,...15].
+    function highlight(word, positions){
+        word.addClass("lit");
+
+        var letter_lis  = grid.children("li");
+        var word_lis    = words.children("li");
+
+        word_lis.removeClass("lit");
+        letter_lis.removeClass("lit");
+
+        for(var j = 0; j < positions.length; j++) {
+            letter_lis.eq(positions[j]).addClass("lit");
+        }
+    }
+
+    // asynchronously:
+    // captures an image.
+    // disables the ui.
+    // recognizes the letters.
+    // displays the letters.
+    // calls do_solve, which eventually re-enables the UI.
+    function do_capture() {
+        disable_ui();
+        setStatus("Processing the image.");
+        
+        var promise = state.capture.capture();
+
+        // success: function(result) {
+        //  state.letters = result.letters;
+        //  display_letters();
+        //  do_solve();
+        // }
+    }
+
+    // asynchronously:
+    // disables the ui.
+    // solves the current set of letters.
+    // displays the words.
+    // enables the ui.
+    function do_solve() {
+        disable_ui();
+        setStatus("Solving the puzzle.");
+        var promise = state.solve.solve(state.letters);
+
+        // success: function(result){
+        //  state.words = result.words;
+        //  clearStatus();
+        //  display_words();
+        //  enable_ui();
+        // }
+    }
+
+    // asynchronously:
+    // updates the letter.
+    // displays the new letters.
+    // calls do_solve.
+    function do_correct(pos, letter) {
+        state.letters[pos] = letter;
+        display_letters();
+        do_solve();
+    }
+
+    // clears the state and removes UI elements from previous solutions.
+    // returns to capture mode.
+    function do_reset() {
+        state.mode = enum_capture;
+        state.letters = [];
+        state.words = [];
+        grid.empty().removeClass("static");
+        words.empty();
+    }
+
+    // === Event Handlers ===
+    // A grid cell was clicked, show a UI element to allow correction of its letter.
+    function btn_correct(e) {
+        if (!state.buttons_enabled) return;
+        var pos = e.data.pos;
+        console.log("btn_correct: pos = ", pos);
+
+        // TODO: A better UI element than this ;)
+        var letter = window.prompt("Correct letter:");
+        if (letter != null && letter != "") {
+            letter = letter[0].toUpperCase;
+            if (letter == "Q")
+                letter = "Qu";
+
+            do_correct(pos, letter);
+        }
+    }
+
+    // The solve button was clicked, capture the image and start the solver.
+    // Alternatively, if we are in display mode, just solve again with corrections.
+    function btn_solve() {
+        if (!state.buttons_enabled) return;
+        if (state.mode == enum_capture) {
+            do_capture(); //includes do_solve.
+        } else {
+            do_solve();
+        }
+    }
+
+    // The reset button was clicked, go back to image capture mode.
+    function btn_reset() {
+        if (!state.buttons_enabled) return;
+        do_reset();
+    }
+
+
+    // attach the main UI events
+    function initButtonEvents() {
+        buttons.children(".solve").on("click", btn_solve);
+        buttons.children(".reset").on("reset", btn_reset);
+    }
+
+    // === Public Methods ===
+    // initialises the UI and initialises the other components.
+    function init() {
+        // only initialise once!
+        if (state.init) return;
+        state.init = true;
+
+        // disable UI interactions until initialisation is completed.
+        disable_ui();
+   
+        // instantiate solve
+        if (state.options.solve) {
+           state.solve = state.options.solve;
+        } else {
+           state.solve = boogle();
+        }
+
+        // instantiate capture
+        if (state.options.capture) {
+            state.capture = state.options.capture;
+        } else {
+            state.capture = capture();
+        }
+
+        // attach events
+        initButtonEvents();
+
+        // initialise the solver and capture objects, which can take quite some time.
+        setStatus("Initialising camera capture and solver dictionary.");
+        var promise_capture = state.capture.init();
+        //var promise_solve   = state.solve.init();
+
+        Promise.all([promise_capture])
+            .then(function(results) {
+                console.log("ui.init:", results);
+
+                // deal with results from promise_capture
+                capture_result = results[0];
+                var v = video.get(0);
+                v.src = capture_result;
+                v.onloadedmetadata = function(e) {
+                    v.play();
+                };
+
+                // deal with results from promise_solve
+                // solve_result = results[1];
+
+                // everything done
+                state.ui_ready = true;
+                enable_ui();
+                clearStatus();
+            })
+            .catch(function(err) {
+                setStatus("Could not initialise: "+err.name);
+            });
+
+        // Debugging
+        console.log(this);
+        console.log(state);
+    }
+
+    return {
+        init: init,
+        state: state
+    };
+}
+
+// --------------------------------------------------
+// *** Initialise everything on document.ready(). ***
+// --------------------------------------------------
+$(function() {
+    // start the application with default options for now
+    var the_ui = boogle_ui();
+    the_ui.init();
 });
