@@ -6,7 +6,7 @@ There is a [live demo](http://kristianhentschel.github.io/boogle/). It requires 
 
 Scan the board by aligning it so each letter fits in a square. Non-upright letter cubes are not supported yet.
 
-*Try scanning some of [these images](https://www.google.com/search?site=imghp&q=boggle+board&tbm=isch) from a computer screen if you don't own a physical copy of the game.*
+*Try scanning [this image](test-images/boogle-1.jpg). It works best if the letters are black on white, with the letter cubes separated by black areas.*
 
 ## Background
 Boggle(tm) is a word game: There are 16 letter cubes, which are cast into a 4-by-4 grid. Players aim to find unique words of three characters or more, by combining adjacent letters horizontally, vertically, or diagonally. Letters must be used in order of their interconnection, and each letter cube may only be used once per word.
