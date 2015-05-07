@@ -9,6 +9,17 @@ The application is currently only being tested in Chrome 42 (on Windows 8.1 and 
 
 A camera accessible to the browser is required as the application is based on image capture.
 
+## Functionality
+
+The following features have been implemented:
+
+* Capture an image from a webcam
+* Slice the image into the letter cells and do basic preprocessing
+* OCR each letter
+* Display the recognized letters and allow manual correction
+* Solve the grid using a trie initialised with a large dictionary.
+* Display the found words, and highlight their positions in the grid
+
 ## Status
 
 This project is a work in progress, and the latest commits are not guaranteed to work at all.
@@ -17,7 +28,6 @@ A number of important features are still missing:
 
 * Rotating characters before the OCR step, as cubes may fall in any orientation.
 * Once rotation is added, differentiating between W and M (there is a thin line on the cube to indicate the base).
-* Manual input or correction of recognized characters
 * WebWorkers (?) for running image manipulations and character recognition in a separate thread
 * LocalStorage (?) for offline availability and caching of generated dictionary
 
