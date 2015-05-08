@@ -172,14 +172,15 @@ function boogle(options) {
 function capture(msg) {
     var video   = document.getElementById("capture-video");
     var img     = document.getElementById("capture-img");
-    var TESTING = false;
+    var user_settings = {
+        save_img: false,
+        show_processed: false,
+        static_img: false //TODO may not be needed/there may be a better way of expressing this.
+    }
 
     function init(){
-        if(TESTING) {
-            $(video).hide();
+        if(user_settings.static_img) {
             return Promise.resolve({name: "capture.init", msg: "testing mode, no need to try the video."});
-        } else {
-            $(img).hide();
         }
 
         // Polyfill from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
@@ -262,7 +263,7 @@ function capture(msg) {
             var canvas;
 
             try {
-                if (TESTING) {
+                if (user_settings.static_img) {
                     canvas = capture_to_canvas(img);
                 } else {
                     canvas = capture_to_canvas(video);
@@ -309,7 +310,7 @@ function capture(msg) {
                     try {
                         // TODO OCRAD can also be used as a promise, so we should do all asynchronously.
                         result = OCRAD(ctx, ocrad_options);
-                        if (TESTING) {
+                        if (user_settings.show_processed) {
                             $(c).attr("title",result).appendTo($("body"));
                         }
                     } catch(err) {
@@ -342,13 +343,14 @@ function capture(msg) {
                 }
             }
 
-            // Debug: convert image to data URI
-            // TODO: trigger with a flag
-            $("<a>")
-                .attr("download", "boogle_"+new Date().getTime()+"_"+btoa(letters.join()))
-                .attr("href", canvas.toDataURL("image/png"))
-                .text("captured image")
-                .get(0).click();
+            // start a download of the image if enabled
+            if (user_settings.save_img) {
+                $("<a>")
+                    .attr("download", "boogle_"+new Date().getTime()+"_"+btoa(letters.join()))
+                    .attr("href", canvas.toDataURL("image/png"))
+                    .text("captured image")
+                    .get(0).click();
+            }
 
             // fulfil the promise with our result
             y(letters);
@@ -449,7 +451,10 @@ function capture(msg) {
     return {
         init: init,
         capture: capture,
-        reset: reset
+        reset: reset,
+        setShowProcessed: function(val) { user_settings.show_processed = !!val; },
+        setSaveImg: function(val) { user_settings.save_img = !!val; },
+        setStaticImg: function(val) { user_settings.static_img = !!val; }
     };
 }
 
@@ -614,6 +619,7 @@ function boogle_ui(options) {
 
     // clears the state and removes UI elements from previous solutions.
     // returns to capture mode.
+    // resets the static-image flag in capture object in case the last request used it.
     function do_reset() {
         state.mode = enum_capture;
         state.letters = [];
@@ -623,6 +629,11 @@ function boogle_ui(options) {
             grid.append($("<li>"));
         }
         words.empty();
+
+        $("#capture-img").hide();
+        $("#capture-video").show();
+        state.capture.setStaticImg(false);
+
         video.get(0).play();
     }
 
@@ -665,11 +676,44 @@ function boogle_ui(options) {
         do_reset();
     }
 
+    // Toggle the save-images setting
+    // set the corresponding field in the capture object.
+    function change_save_img(e) {
+        state.capture.setSaveImg(this.checked);
+    }
+
+    // Toggle the show-processed-image setting
+    // set the corresponding field in the capture object.
+    function change_show_processed(e) {
+        state.capture.setShowProcessed(this.checked);
+    }
+
+    // Choose a file for manual input
+    // set the file processing flag and display the image file (solve button will take care of the rest)
+    function change_file_input(e) {
+        // Reset, in case a previous solution is currently shown
+        do_reset();
+
+        // Load the selected image file into the DOM
+        var img = document.getElementById("capture-img");
+        var file = this.files[0];
+        var url = window.URL.createObjectURL(file);
+        img.src = url;
+
+        // show the image and set the flag for capture
+        $("#capture-img").show();
+        $("#capture-video").hide();
+        state.capture.setStaticImg(true);
+    }
 
     // attach the main UI events
-    function initButtonEvents() {
+    function initEvents() {
         buttons.children("#solve").on("click", btn_solve);
         buttons.children("#reset").on("click", btn_reset);
+
+        $("#setting_save_img").on("change", change_save_img).get(0).checked = false;
+        $("#setting_show_processed").on("change", change_show_processed).get(0).checked = false;
+        $("#setting_file_input").on("change", change_file_input);
     }
 
     // === Public Methods ===
@@ -697,7 +741,7 @@ function boogle_ui(options) {
         }
 
         // attach events
-        initButtonEvents();
+        initEvents();
 
         // initialise the solver and capture objects, which can take quite some time.
         setStatus("Initialising camera capture and solver dictionary.");
@@ -715,6 +759,9 @@ function boogle_ui(options) {
                 v.onloadedmetadata = function(e) {
                     v.play();
                 };
+
+                // hide place holder image
+                $("#capture-img").hide();
 
                 // deal with results from promise_solve
                 // solve_result = results[1];

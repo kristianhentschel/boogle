@@ -28,8 +28,8 @@ body {
     border-radius:5px;
 }
 
-#capture-video{
-    width:300px;
+#capture-video, #capture-img{
+    min-width:300px;
     height:300px;
     object-fit: cover;
 }
