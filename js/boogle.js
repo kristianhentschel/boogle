@@ -309,6 +309,9 @@ function capture(msg) {
                     try {
                         // TODO OCRAD can also be used as a promise, so we should do all asynchronously.
                         result = OCRAD(ctx, ocrad_options);
+                        if (TESTING) {
+                            $(c).attr("title",result).appendTo($("body"));
+                        }
                     } catch(err) {
                         console.log("error in OCRAD", err);
                         n(err);
@@ -339,7 +342,15 @@ function capture(msg) {
                 }
             }
 
-            console.log(letters);
+            // Debug: convert image to data URI
+            // TODO: trigger with a flag
+            $("<a>")
+                .attr("download", "boogle_"+new Date().getTime()+"_"+btoa(letters.join()))
+                .attr("href", canvas.toDataURL("image/png"))
+                .text("captured image")
+                .get(0).click();
+
+            // fulfil the promise with our result
             y(letters);
         });
         return promise;
