@@ -136,3 +136,26 @@ button {
 button:hover{
     background-color:#fff;
 }
+
+ul#settings {
+    list-style:none;
+    text-align:left;
+    width:100%;
+    max-width:300px;
+    margin:16px auto;
+    border-top:1px solid #666;
+    border-bottom:1px solid #666;
+    padding-top:4px;
+    padding-bottom:4px;
+}
+
+ul#settings li {
+    padding:4px;
+    color:#999;
+    font-size:small;
+}
+ul#settings li input {
+    vertical-align:bottom;
+    margin-right:4px;
+    font-size:inherit;
+}
