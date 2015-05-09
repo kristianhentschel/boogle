@@ -276,7 +276,8 @@ function capture() {
 
             // recognise a single letter, uppercase ASCII only, black on white.
             var ocrad_options = {
-                charset: 'ascii'
+                charset: 'ascii',
+                filters: ['letters_only']
             }
 
             // prepare results array
@@ -293,31 +294,66 @@ function capture() {
             var promises = [];
             for(var i = 0; i < 4; i++) {
                 for(var j = 0; j < 4; j++) {
-                    var promise = new Promise(function(y,n) {
-                        // create a new canvas for each letter
-                        var c = document.createElement("canvas");
-                        var ctx = c.getContext("2d");
-                        c.width = lw;
-                        c.height = lw;
+                    // create a canvas for preprocessing each letter
+                    // copy the square for this grid cell from the original square crop
+                    var pre_c = document.createElement("canvas");
+                    pre_c.width = lw;
+                    pre_c.height = lw;
+                    var pre_ctx = pre_c.getContext("2d");
+                    pre_ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
 
-                        // copy the square for this grid cell to the new canvas
-                        ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
+                    // try to adjust contrast, apply vignette, etc.
+                    // TODO prepare ocr is still synchronous even if ocrad isn't.
+                    prepare_ocr(pre_ctx, lw);
+                    console.log("prepare_ocr done for ", i, j);
 
-                        // try to adjust contrast, apply vignette, etc.
-                        // TODO prepare ocr is still synchronous even if ocrad isn't.
-                        prepare_ocr(ctx, lw);
-                        console.log("prepare_ocr done for ", i, j);
-                        if (user_settings.show_processed) {
-                            $(c).appendTo($("body"));
-                        }
 
-                        // TODO: rotation needs to be added before OCR step...
+                    for(var k = 0; k < 4; k++) {
+                        var promise = new Promise(function(y,n) {
+                            // create another canvas to use for the rotation
+                            var c = document.createElement("canvas");
+                            c.width = lw;
+                            c.height = lw;
+                            var ctx = c.getContext("2d");
 
-                        // recognize a character string
-                        // use OCRAD with an asynchronous callback as a promise so we can move on?
+                            // rotate canvas around the center (translate needed as normally it rotates around the top left origin)
+                            ctx.translate(lw/2, lw/2);
+                            ctx.rotate(k * Math.PI/2); //0, 90, 180, 270 degrees
+                            ctx.translate(-lw/2, -lw/2);
+
+                            // copy the preprocessed image onto the new rotated canvas
+                            ctx.drawImage(pre_c, 0, 0, lw, lw);
+
+                            if (user_settings.show_processed) {
+                                $(c).appendTo($("body"));
+                            }
+
+                            ocrad_options.verbose = true;
+
+                            // recognize a character string
+                            // use OCRAD with an asynchronous callback to fulfil the promise
                             OCRAD(ctx, ocrad_options, function(result){y(result)});
-                    });
-                    promises.push(promise);
+                        }).then(function(result){
+                            // post processing for verbose output
+                            console.log(result);
+                            var matches = [];
+                            var rl = result.letters;
+                            for(var i = 0; i < rl.length; rl++) {
+                                for(var j = 0; j < rl[i].matches.length; j++) {
+                                    var m = rl[i].matches[j];
+                                    matches.push(m);
+                                }
+                            }
+                            matches = _.sortBy(matches, "confidence");
+                            console.log(_.pluck(matches, "letter"));
+                            if (matches.length > 0)
+                                return _.last(matches).letter;
+                            else 
+                                return "";
+                        });
+                        promises.push(promise);
+                    }
+                    return;
                 }
             }
 
