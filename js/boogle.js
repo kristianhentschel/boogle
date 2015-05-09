@@ -387,6 +387,8 @@ function capture(msg) {
             black = Math.min(gray, black);
         }
 
+        white = Math.max(black + 1, white * .75);
+        black = Math.min(1.25 * black, white - 1);
         // convert to gray scale and apply black/white level adjustment
         for(var i = 0; i < data.length; i += 4) {
             var avg = (data[i] + data[i+1] + data[i+2]) / 3;
@@ -423,9 +425,14 @@ function capture(msg) {
                     for(var i = 0; i < cos.length; i++) {
                         var x = Math.round(cx + r * cos[i]);
                         var y = Math.round(cy + r * sin[i]);
+                        var x1 = Math.round(cx + r * cos[i]);
+                        var y1 = Math.round(cy + r * sin[i]);
                         var luma = data[4 * (x + y * w)];
                         if ( luma > 200) {
-                            sum += luma;
+                            sum += 1;//luma;
+                        }
+                        if ( luma < 10) {
+                            sum -= 1;
                         }
                         if (x < 0 || x > w || y < 0 || y > w) {
                             sum = 0;
