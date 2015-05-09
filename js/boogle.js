@@ -290,36 +290,42 @@ function capture(msg) {
             var lw = canvas.width / 4;
 
             // For each letter, crop the corresponding part of the still frame and try to recognize it.
+            var promises = [];
             for(var i = 0; i < 4; i++) {
                 for(var j = 0; j < 4; j++) {
-                    // create a new canvas for each letter
-                    var c = document.createElement("canvas");
-                    var ctx = c.getContext("2d");
-                    c.width = lw;
-                    c.height = lw;
+                    var promise = new Promise(function(y,n) {
+                        // create a new canvas for each letter
+                        var c = document.createElement("canvas");
+                        var ctx = c.getContext("2d");
+                        c.width = lw;
+                        c.height = lw;
 
-                    // copy the square for this grid cell to the new canvas
-                    ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
+                        // copy the square for this grid cell to the new canvas
+                        ctx.drawImage(canvas, j * lw, i * lw, lw, lw, 0, 0, lw, lw);
 
-                    // try to adjust contrast, apply vignette, etc.
-                    prepare_ocr(ctx, lw);
-
-                    // TODO: rotation needs to be added before OCR step...
-                    // recognize a character string
-                    var result;
-                    try {
-                        // TODO OCRAD can also be used as a promise, so we should do all asynchronously.
-                        result = OCRAD(ctx, ocrad_options);
+                        // try to adjust contrast, apply vignette, etc.
+                        // TODO prepare ocr is still synchronous even if ocrad isn't.
+                        prepare_ocr(ctx, lw);
+                        console.log("prepare_ocr done for ", i, j);
                         if (user_settings.show_processed) {
-                            $(c).attr("title",result).appendTo($("body"));
+                            $(c).appendTo($("body"));
                         }
-                    } catch(err) {
-                        console.log("error in OCRAD", err);
-                        n(err);
-                        return;
-                    }
 
-                    // correct common mismatches
+                        // TODO: rotation needs to be added before OCR step...
+
+                        // recognize a character string
+                        // use OCRAD with an asynchronous callback as a promise so we can move on?
+                            OCRAD(ctx, ocrad_options, function(result){y(result)});
+                    });
+                    promises.push(promise);
+                }
+            }
+
+            // correct common mismatches once all promises have returned
+            Promise.all(promises).then(function(results) {
+                console.log("all OCRAD promises fulfilled.");
+                for(var i = 0; i < results.length; i++) {
+                    var result = results[i];
                     result = result.replace("l", "I");
                     result = result.replace("|", "I");
                     result = result.replace("1", "I");
@@ -338,10 +344,14 @@ function capture(msg) {
                     } else {
                         result = result[0];
                     }
-
-                    letters[4*i + j] = result;
+                    letters[i] = result; 
                 }
-            }
+                // fulfil the promise with our result
+                y(letters);
+            }).catch(function(err){
+                // some error occured in one of the OCRAD promises?
+                n(err);
+            });
 
             // start a download of the image if enabled
             if (user_settings.save_img) {
@@ -352,9 +362,8 @@ function capture(msg) {
                     .get(0).click();
             }
 
-            // fulfil the promise with our result
-            y(letters);
         });
+        console.log("returning capture promise");
         return promise;
     }
 
@@ -572,7 +581,7 @@ function boogle_ui(options) {
     // calls do_solve, which eventually re-enables the UI.
     function do_capture() {
         disable_ui();
-        setStatus("Processing the image.");
+        setStatus("Processing the image and recognizing characters.");
         
         var promise = state.capture.capture();
 
