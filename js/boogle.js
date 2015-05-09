@@ -408,7 +408,7 @@ function capture(msg) {
         var best_cy = w/2;
         var best_sum = 0;
 
-        var rmin = 0.2 * w;
+        var rmin = 0.3 * w;
         var rmax = 0.5 * w;
 
         var cos = [];
