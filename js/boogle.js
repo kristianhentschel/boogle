@@ -169,7 +169,7 @@ function boogle(options) {
     };
 }
 
-function capture(msg) {
+function capture() {
     var video   = document.getElementById("capture-video");
     var img     = document.getElementById("capture-img");
     var user_settings = {
@@ -567,8 +567,6 @@ function boogle_ui(options) {
     // word is a jQuery-wrapped DOM element
     // positions is an array of letter positions [0,1,...15].
     function highlight(word, positions){
-        console.log(word);
-
         var letter_lis  = grid.children("li");
         var word_lis    = words.children("li");
 
@@ -659,7 +657,6 @@ function boogle_ui(options) {
     function btn_correct(e) {
         if (!state.buttons_enabled) return;
         var pos = e.data.pos;
-        console.log("btn_correct: pos = ", pos);
 
         // TODO: A better UI element than this ;)
         var letter = window.prompt("Correct letter:", e.data.letter);
@@ -668,7 +665,6 @@ function boogle_ui(options) {
             if (letter == "Q")
                 letter = "Qu";
 
-            console.log(pos, letter);
             do_correct(pos, letter);
         }
     }
