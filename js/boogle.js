@@ -335,6 +335,7 @@ function capture(msg) {
                     result = result.replace("_", "");
                     result = result.replace("\n", "");
                     result = result.replace("Ou", "Qu");
+                    result = result.replace("au", "Qu");
                     result = result.toUpperCase();
 
                     if (result.length == '0'){
