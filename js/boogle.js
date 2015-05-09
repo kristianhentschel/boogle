@@ -707,10 +707,14 @@ function boogle_ui(options) {
         // Reset, in case a previous solution is currently shown
         do_reset();
 
-        // Load the selected image file into the DOM
-        var img = document.getElementById("capture-img");
+        // check that the file is valid
         var file = this.files[0];
+        if(file === undefined) return;
+        if(file.type != "image/png" && file.type != "image/jpg" && file.type != "image/gif") return;
+
+        // Load the selected image file into the DOM
         var url = window.URL.createObjectURL(file);
+        var img = document.getElementById("capture-img");
         img.src = url;
 
         // show the image and set the flag for capture
