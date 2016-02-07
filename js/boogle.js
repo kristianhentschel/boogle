@@ -252,6 +252,8 @@ function capture() {
         canvas.width = cw;
         canvas.height = cw;
 
+        console.log(sw, sh, cw, cx, cy);
+
         var ctx = canvas.getContext("2d");
         ctx.drawImage(elem, cx, cy, cw, cw, 0, 0, cw, cw);
 
