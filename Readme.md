@@ -42,6 +42,7 @@ A number of important features are still missing:
 
 ## Acknowledgements
 
+* [adapter.js](https://github.com/webrtc/adapter) (Copyright 2014, The WebRTC project authors) provides a shim for the WebRTC standards API
 * [ocrad.js](https://github.com/antimatter15/ocrad.js) (GPL v3) is a Javascript port of the OCRAD ocr program.
 * Production versions of jQuery (MIT) and underscore.js (MIT).
 * The game rules for Boggle are protected by copyright and trademark by Hasbro. This application does not actually allow playing the game, but rather calculates solutions to an interesting problem.
