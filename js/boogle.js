@@ -169,6 +169,24 @@ function boogle(options) {
     };
 }
 
+function urlCapture() {
+  const letters = location.hash.slice(1).toUpperCase().split('').map(l => l === 'Q' ? 'Qu' : l);
+  const immediate = letters.length === 16;
+
+  function init() {
+  }
+
+  function capture() {
+    return Promise.resolve(letters);
+  }
+
+  return {
+    init,
+    capture,
+    immediate,
+  };
+}
+
 function capture() {
     var video   = document.getElementById("capture-video");
     var img     = document.getElementById("capture-img");
@@ -727,6 +745,7 @@ function boogle_ui(options) {
 
     // attach the main UI events
     function initEvents() {
+        // buttons.children("#use_camera").on("click", btn_use_camera);
         buttons.children("#solve").on("click", btn_solve);
         buttons.children("#reset").on("click", btn_reset);
 
@@ -773,11 +792,13 @@ function boogle_ui(options) {
 
                 // deal with results from promise_capture
                 capture_result = results[0];
-                var v = video.get(0);
-                v.src = capture_result;
-                v.onloadedmetadata = function(e) {
-                    v.play();
-                };
+                if (capture_result) {
+                  var v = video.get(0);
+                  v.src = capture_result;
+                  v.onloadedmetadata = function(e) {
+                      v.play();
+                  };
+                }
 
                 // hide place holder image
                 $("#capture-img").hide();
@@ -789,8 +810,13 @@ function boogle_ui(options) {
                 state.ui_ready = true;
                 enable_ui();
                 clearStatus();
+
+                if (state.capture.immediate) {
+                  do_capture();
+                }
             })
             .catch(function(err) {
+                console.error(err);
                 setStatus("Could not initialise: "+err.name);
             });
 
@@ -810,6 +836,6 @@ function boogle_ui(options) {
 // --------------------------------------------------
 $(function() {
     // start the application with default options for now
-    var the_ui = boogle_ui();
+    var the_ui = boogle_ui({ capture: urlCapture() });
     the_ui.init();
 });
